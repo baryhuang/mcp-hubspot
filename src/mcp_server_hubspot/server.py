@@ -108,6 +108,16 @@ async def main(access_token: Optional[str] = None):
                     },
                 },
             ),
+            types.Tool(
+                name="hubspot_get_recent_conversations",
+                description="Get recent conversations from HubSpot inbox",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "limit": {"type": "integer", "description": "Maximum number of conversations to return (default: 10)"}
+                    },
+                },
+            ),
         ]
 
     @server.call_tool()
@@ -287,6 +297,17 @@ async def main(access_token: Optional[str] = None):
                 
                 # Get recent contacts
                 results = hubspot.get_recent_contacts(limit=limit)
+                return [types.TextContent(type="text", text=results)]
+
+            elif name == "hubspot_get_recent_conversations":
+                # Extract parameters with defaults if not provided
+                limit = arguments.get("limit", 10) if arguments else 10
+                
+                # Ensure limit is an integer
+                limit = int(limit) if limit is not None else 10
+                
+                # Get recent conversations
+                results = hubspot.get_recent_conversations(limit=limit)
                 return [types.TextContent(type="text", text=results)]
 
             else:
