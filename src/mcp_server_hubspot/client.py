@@ -396,76 +396,45 @@ class HubSpotClient:
                     logger.warning(f"Failed to fetch channels for inbox {inbox.get('id')}: {str(ch_err)}")
                     formatted_inbox["channels"] = []
                 
-                # Get conversations for this inbox
+                # Get threads for this inbox using the correct endpoint
                 try:
-                    # Get conversations from inbox
-                    conversations_response = self.client.api_request({
+                    # Get threads from the threads endpoint
+                    threads_response = self.client.api_request({
                         "method": "GET",
-                        "path": "/conversations/v3/conversations",
+                        "path": "/conversations/v3/conversations/threads",
                         "params": {
                             "inboxId": inbox.get('id'),
                             "limit": limit
                         }
                     }).json()
                     
-                    conversations = []
-                    for conversation in conversations_response.get('results', []):
-                        # Format basic conversation details
-                        formatted_convo = {
-                            "id": conversation.get("id"),
-                            "type": conversation.get("type"),
-                            "status": conversation.get("status"),
-                            "created_time": conversation.get("createdTime"),
-                            "last_updated_time": conversation.get("updatedTime"),
-                            "subject": conversation.get("subject", ""),
-                            "associated_contacts": [
-                                {"id": contact.get("id"), "type": contact.get("type")} 
-                                for contact in conversation.get("associatedObjects", {}).get("contacts", [])
-                            ],
-                            "associated_companies": [
-                                {"id": company.get("id"), "type": company.get("type")} 
-                                for company in conversation.get("associatedObjects", {}).get("companies", [])
-                            ]
+                    threads = []
+                    for thread in threads_response.get('results', []):
+                        # Format thread details
+                        formatted_thread = {
+                            "id": thread.get("id"),
+                            "status": thread.get("status"),
+                            "created_at": thread.get("createdAt"),
+                            "latest_message_timestamp": thread.get("latestMessageTimestamp"),
+                            "latest_message_sent_timestamp": thread.get("latestMessageSentTimestamp"),
+                            "latest_message_received_timestamp": thread.get("latestMessageReceivedTimestamp"),
+                            "associated_contact_id": thread.get("associatedContactId"),
+                            "assigned_to": thread.get("assignedTo"),
+                            "archived": thread.get("archived"),
+                            "closed_at": thread.get("closedAt"),
+                            "inbox_id": thread.get("inboxId"),
+                            "spam": thread.get("spam"),
+                            "original_channel_id": thread.get("originalChannelId"),
+                            "original_channel_account_id": thread.get("originalChannelAccountId"),
+                            "thread_associations": thread.get("threadAssociations", {})
                         }
                         
-                        # Get messages for this conversation
-                        try:
-                            messages_response = self.client.api_request({
-                                "method": "GET",
-                                "path": f"/conversations/v3/conversations/{conversation.get('id')}/messages"
-                            }).json()
-                            
-                            messages = []
-                            for message in messages_response.get('results', []):
-                                formatted_message = {
-                                    "id": message.get("id"),
-                                    "type": message.get("type"),
-                                    "status": message.get("status"),
-                                    "created_time": message.get("createdTime"),
-                                    "text": message.get("text", ""),
-                                    "sender": {
-                                        "id": message.get("sender", {}).get("id"),
-                                        "type": message.get("sender", {}).get("type"),
-                                        "email": message.get("sender", {}).get("email")
-                                    },
-                                    "recipient": {
-                                        "id": message.get("recipient", {}).get("id"),
-                                        "type": message.get("recipient", {}).get("type")
-                                    }
-                                }
-                                messages.append(formatted_message)
-                            
-                            formatted_convo["messages"] = messages
-                        except Exception as message_err:
-                            logger.warning(f"Failed to fetch messages for conversation {conversation.get('id')}: {str(message_err)}")
-                            formatted_convo["messages"] = []
-                        
-                        conversations.append(formatted_convo)
+                        threads.append(formatted_thread)
                     
-                    formatted_inbox["conversations"] = conversations
-                except Exception as conv_err:
-                    logger.warning(f"Failed to fetch conversations for inbox {inbox.get('id')}: {str(conv_err)}")
-                    formatted_inbox["conversations"] = []
+                    formatted_inbox["threads"] = threads
+                except Exception as thread_err:
+                    logger.warning(f"Failed to fetch threads for inbox {inbox.get('id')}: {str(thread_err)}")
+                    formatted_inbox["threads"] = []
                 
                 formatted_inboxes.append(formatted_inbox)
             
