@@ -429,6 +429,15 @@ class HubSpotClient:
                             "thread_associations": thread.get("threadAssociations", {})
                         }
                         
+                        # Fetch the latest message for this thread
+                        try:
+                            latest_message = self.get_thread_latest_message(thread.get("id"))
+                            if latest_message:
+                                formatted_thread["latest_message"] = latest_message
+                        except Exception as msg_err:
+                            logger.warning(f"Failed to fetch latest message for thread {thread.get('id')}: {str(msg_err)}")
+                            formatted_thread["latest_message"] = None
+                        
                         threads.append(formatted_thread)
                     
                     formatted_inbox["threads"] = threads
@@ -471,4 +480,58 @@ class HubSpotClient:
             return json.dumps({"error": str(e)})
         except Exception as e:
             logger.error(f"Exception: {str(e)}")
-            return json.dumps({"error": str(e)}) 
+            return json.dumps({"error": str(e)})
+
+    def get_thread_latest_message(self, thread_id: str) -> dict:
+        """Get the latest message from a conversation thread
+        
+        Args:
+            thread_id: The ID of the thread to get the latest message from
+            
+        Returns:
+            Dictionary containing the latest message details
+        """
+        try:
+            # Get multiple messages as the first might be a system message
+            messages_response = self.client.api_request({
+                "method": "GET",
+                "path": f"/conversations/v3/conversations/threads/{thread_id}/messages",
+                "params": {
+                    "limit": 3 # at least get 3, the first message can be system message
+                }
+            })
+            
+            # Parse the JSON response
+            messages_data = messages_response.json()
+            
+            # Iterate through messages to find the first one with non-empty text
+            if messages_data and "results" in messages_data and messages_data["results"]:
+                for message in messages_data["results"]:
+                    if message.get("text"):
+                        return {
+                            "id": message.get("id"),
+                            "subject": message.get("subject"),
+                            "text": message.get("text")[0:500] if message.get("text") else "",
+                            # "richText": message.get("richText"),
+                            "createdAt": message.get("createdAt"),
+                            "direction": message.get("direction"),
+                            "status": message.get("status", {}).get("statusType") if message.get("status") else None
+                        }
+                
+                # If we didn't find a message with text, return the first one anyway
+                message = messages_data["results"][0]
+                return {
+                    "id": message.get("id"),
+                    "subject": message.get("subject"),
+                    "text": message.get("text")[0:500] if message.get("text") else "",
+                    # "richText": message.get("richText"),
+                    "createdAt": message.get("createdAt"),
+                    "direction": message.get("direction"),
+                    "status": message.get("status", {}).get("statusType") if message.get("status") else None
+                }
+            
+            return {}
+            
+        except Exception as e:
+            logger.error(f"Failed to get latest message for thread {thread_id}: {str(e)}")
+            return {} 
