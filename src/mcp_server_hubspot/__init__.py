@@ -2,6 +2,7 @@ import argparse
 import asyncio
 import logging
 from . import server
+from .client import HubSpotClient
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger('mcp_hubspot')
@@ -22,4 +23,4 @@ if __name__ == "__main__":
     main()
 
 # Expose important items at package level
-__all__ = ["main", "server"] 
+__all__ = ["main", "server", "HubSpotClient"] 
