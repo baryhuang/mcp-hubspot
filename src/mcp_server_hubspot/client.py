@@ -342,113 +342,11 @@ class HubSpotClient:
             limit: Maximum number of conversations to return (default: 10)
         """
         try:
-            # Get conversations from inbox API
-            inboxes_response = self.client.api_request({
-                "method": "GET",
-                "path": "/conversations/v3/conversations/inboxes",
-                "params": {
-                    "limit": limit
-                }
-            }).json()
-            
-            formatted_inboxes = []
-            
-            for inbox in inboxes_response.get('results', []):
-                formatted_inbox = {
-                    "id": inbox.get("id"),
-                    "type": inbox.get("type"),
-                    "name": inbox.get("name"),
-                    "created_at": inbox.get("createdAt"),
-                    "updated_at": inbox.get("updatedAt"),
-                    "archived": inbox.get("archived"),
-                    "archived_at": inbox.get("archivedAt")
-                }
-                
-                # Get channels for this inbox
-                try:
-                    # Get channels from channel accounts endpoint
-                    channels_response = self.client.api_request({
-                        "method": "GET",
-                        "path": "/conversations/v3/conversations/channel-accounts",
-                        "params": {
-                            "inboxId": inbox.get('id')
-                        }
-                    }).json()
-                    
-                    formatted_channels = []
-                    for channel in channels_response.get('results', []):
-                        formatted_channel = {
-                            "id": channel.get("id"),
-                            "name": channel.get("name"),
-                            "channel_id": channel.get("channelId"),
-                            "inbox_id": channel.get("inboxId"),
-                            "created_at": channel.get("createdAt"),
-                            "archived_at": channel.get("archivedAt"),
-                            "archived": channel.get("archived"),
-                            "authorized": channel.get("authorized"),
-                            "active": channel.get("active"),
-                            "delivery_identifier": channel.get("deliveryIdentifier")
-                        }
-                        formatted_channels.append(formatted_channel)
-                    
-                    formatted_inbox["channels"] = formatted_channels
-                except Exception as ch_err:
-                    logger.warning(f"Failed to fetch channels for inbox {inbox.get('id')}: {str(ch_err)}")
-                    formatted_inbox["channels"] = []
-                
-                # Get threads for this inbox using the correct endpoint
-                try:
-                    # Get threads from the threads endpoint
-                    threads_response = self.client.api_request({
-                        "method": "GET",
-                        "path": "/conversations/v3/conversations/threads",
-                        "params": {
-                            "inboxId": inbox.get('id'),
-                            "limit": limit
-                        }
-                    }).json()
-                    
-                    threads = []
-                    for thread in threads_response.get('results', []):
-                        # Format thread details
-                        formatted_thread = {
-                            "id": thread.get("id"),
-                            "status": thread.get("status"),
-                            "created_at": thread.get("createdAt"),
-                            "latest_message_timestamp": thread.get("latestMessageTimestamp"),
-                            "latest_message_sent_timestamp": thread.get("latestMessageSentTimestamp"),
-                            "latest_message_received_timestamp": thread.get("latestMessageReceivedTimestamp"),
-                            "associated_contact_id": thread.get("associatedContactId"),
-                            "assigned_to": thread.get("assignedTo"),
-                            "archived": thread.get("archived"),
-                            "closed_at": thread.get("closedAt"),
-                            "inbox_id": thread.get("inboxId"),
-                            "spam": thread.get("spam"),
-                            "original_channel_id": thread.get("originalChannelId"),
-                            "original_channel_account_id": thread.get("originalChannelAccountId"),
-                            "thread_associations": thread.get("threadAssociations", {})
-                        }
-                        
-                        # Fetch the latest message for this thread
-                        try:
-                            latest_message = self.get_thread_latest_message(thread.get("id"))
-                            if latest_message:
-                                formatted_thread["latest_message"] = latest_message
-                        except Exception as msg_err:
-                            logger.warning(f"Failed to fetch latest message for thread {thread.get('id')}: {str(msg_err)}")
-                            formatted_thread["latest_message"] = None
-                        
-                        threads.append(formatted_thread)
-                    
-                    formatted_inbox["threads"] = threads
-                except Exception as thread_err:
-                    logger.warning(f"Failed to fetch threads for inbox {inbox.get('id')}: {str(thread_err)}")
-                    formatted_inbox["threads"] = []
-                
-                formatted_inboxes.append(formatted_inbox)
+            # Get inboxes
+            inboxes = self.get_inboxes(limit)
             
             # Convert any datetime fields and return
-            converted_inboxes = convert_datetime_fields(formatted_inboxes)
+            converted_inboxes = convert_datetime_fields(inboxes)
             return json.dumps(converted_inboxes)
             
         except ApiException as e:
@@ -458,29 +356,241 @@ class HubSpotClient:
             logger.error(f"Exception: {str(e)}")
             return json.dumps({"error": str(e)})
 
-    def get_channel_accounts(self) -> str:
-        """Get channel accounts from HubSpot
+    def get_inboxes(self, limit: int = 10) -> list:
+        """Get inboxes from HubSpot
         
+        Args:
+            limit: Maximum number of inboxes to return (default: 10)
+            
         Returns:
-            JSON string of channel accounts data
+            List of inbox objects
+        """
+        # Get conversations from inbox API
+        inboxes_response = self.client.api_request({
+            "method": "GET",
+            "path": "/conversations/v3/conversations/inboxes",
+            "params": {
+                "limit": limit
+            }
+        }).json()
+        
+        formatted_inboxes = []
+        
+        for inbox in inboxes_response.get('results', []):
+            formatted_inbox = {
+                "id": inbox.get("id"),
+                "type": inbox.get("type"),
+                "name": inbox.get("name"),
+                "created_at": inbox.get("createdAt"),
+                "updated_at": inbox.get("updatedAt"),
+                "archived": inbox.get("archived"),
+                "archived_at": inbox.get("archivedAt")
+            }
+            
+            formatted_inboxes.append(formatted_inbox)
+        
+        return formatted_inboxes
+
+    def get_channels_for_inbox(self, inbox_id: str) -> list:
+        """Get channels for a specific inbox
+        
+        Args:
+            inbox_id: The ID of the inbox to get channels for
+            
+        Returns:
+            List of channel objects for the specified inbox
         """
         try:
-            # Get channel accounts
+            # Get channels from channel accounts endpoint
             channels_response = self.client.api_request({
                 "method": "GET",
-                "path": "/conversations/v3/conversations/channel-accounts"
+                "path": "/conversations/v3/conversations/channel-accounts",
+                "params": {
+                    "inboxId": inbox_id
+                }
             }).json()
             
-            # Convert any datetime fields and return
-            converted_channels = convert_datetime_fields(channels_response.get('results', []))
-            return json.dumps(converted_channels)
+            formatted_channels = []
+            for channel in channels_response.get('results', []):
+                formatted_channel = {
+                    "id": channel.get("id"),
+                    "name": channel.get("name"),
+                    "channel_id": channel.get("channelId"),
+                    "inbox_id": channel.get("inboxId"),
+                    "created_at": channel.get("createdAt"),
+                    "archived_at": channel.get("archivedAt"),
+                    "archived": channel.get("archived"),
+                    "authorized": channel.get("authorized"),
+                    "active": channel.get("active"),
+                    "delivery_identifier": channel.get("deliveryIdentifier")
+                }
+                formatted_channels.append(formatted_channel)
             
-        except ApiException as e:
-            logger.error(f"API Exception: {str(e)}")
-            return json.dumps({"error": str(e)})
+            return formatted_channels
         except Exception as e:
-            logger.error(f"Exception: {str(e)}")
-            return json.dumps({"error": str(e)})
+            logger.warning(f"Failed to fetch channels for inbox {inbox_id}: {str(e)}")
+            return []
+
+    def get_all_channels(self) -> list:
+        """Get all channel accounts from HubSpot
+        
+        Returns:
+            List of channel objects
+        """
+        # Get channel accounts
+        channels_response = self.client.api_request({
+            "method": "GET",
+            "path": "/conversations/v3/conversations/channel-accounts"
+        }).json()
+        
+        formatted_channels = []
+        for channel in channels_response.get('results', []):
+            formatted_channel = {
+                "id": channel.get("id"),
+                "name": channel.get("name"),
+                "channel_id": channel.get("channelId"),
+                "inbox_id": channel.get("inboxId"),
+                "created_at": channel.get("createdAt"),
+                "archived_at": channel.get("archivedAt"),
+                "archived": channel.get("archived"),
+                "authorized": channel.get("authorized"),
+                "active": channel.get("active"),
+                "delivery_identifier": channel.get("deliveryIdentifier")
+            }
+            formatted_channels.append(formatted_channel)
+        
+        return formatted_channels
+
+    def get_threads_for_inbox(self, inbox_id: str, limit: int = 10) -> list:
+        """Get conversation threads for a specific inbox
+        
+        Args:
+            inbox_id: The ID of the inbox to get threads for
+            limit: Maximum number of threads to return (default: 10)
+            
+        Returns:
+            List of thread objects
+        """
+        # Get threads from the threads endpoint
+        threads_response = self.client.api_request({
+            "method": "GET",
+            "path": "/conversations/v3/conversations/threads",
+            "params": {
+                "inboxId": inbox_id,
+                "limit": limit
+            }
+        }).json()
+        
+        threads = []
+        for thread in threads_response.get('results', []):
+            # Format thread details
+            formatted_thread = {
+                "id": thread.get("id"),
+                "status": thread.get("status"),
+                "created_at": thread.get("createdAt"),
+                "latest_message_timestamp": thread.get("latestMessageTimestamp"),
+                "latest_message_sent_timestamp": thread.get("latestMessageSentTimestamp"),
+                "latest_message_received_timestamp": thread.get("latestMessageReceivedTimestamp"),
+                "associated_contact_id": thread.get("associatedContactId"),
+                "assigned_to": thread.get("assignedTo"),
+                "archived": thread.get("archived"),
+                "closed_at": thread.get("closedAt"),
+                "inbox_id": thread.get("inboxId"),
+                "spam": thread.get("spam"),
+                "original_channel_id": thread.get("originalChannelId"),
+                "original_channel_account_id": thread.get("originalChannelAccountId"),
+                "thread_associations": thread.get("threadAssociations", {})
+            }
+            
+            threads.append(formatted_thread)
+            
+        return threads
+        
+    def get_threads_for_channel(self, channel_id: str, limit: int = 10) -> list:
+        """Get conversation threads for a specific channel
+        
+        Args:
+            channel_id: The ID of the channel to get threads for
+            limit: Maximum number of threads to return (default: 10)
+            
+        Returns:
+            List of thread objects
+        """
+        # Get threads from the threads endpoint with channel ID filter
+        threads_response = self.client.api_request({
+            "method": "GET",
+            "path": "/conversations/v3/conversations/threads",
+            "params": {
+                "channelId": channel_id,
+                "limit": limit
+            }
+        }).json()
+        
+        threads = []
+        for thread in threads_response.get('results', []):
+            # Format thread details
+            formatted_thread = {
+                "id": thread.get("id"),
+                "status": thread.get("status"),
+                "created_at": thread.get("createdAt"),
+                "latest_message_timestamp": thread.get("latestMessageTimestamp"),
+                "latest_message_sent_timestamp": thread.get("latestMessageSentTimestamp"),
+                "latest_message_received_timestamp": thread.get("latestMessageReceivedTimestamp"),
+                "associated_contact_id": thread.get("associatedContactId"),
+                "assigned_to": thread.get("assignedTo"),
+                "archived": thread.get("archived"),
+                "closed_at": thread.get("closedAt"),
+                "inbox_id": thread.get("inboxId"),
+                "spam": thread.get("spam"),
+                "original_channel_id": thread.get("originalChannelId"),
+                "original_channel_account_id": thread.get("originalChannelAccountId"),
+                "thread_associations": thread.get("threadAssociations", {})
+            }
+            
+            threads.append(formatted_thread)
+            
+        return threads
+        
+    def get_thread_messages(self, thread_id: str, limit: int = 10) -> list:
+        """Get messages from a conversation thread
+        
+        Args:
+            thread_id: The ID of the thread to get messages from
+            limit: Maximum number of messages to return (default: 10)
+            
+        Returns:
+            List of message objects
+        """
+        try:
+            messages_response = self.client.api_request({
+                "method": "GET",
+                "path": f"/conversations/v3/conversations/threads/{thread_id}/messages",
+                "params": {
+                    "limit": limit
+                }
+            })
+            
+            # Parse the JSON response
+            messages_data = messages_response.json()
+            
+            formatted_messages = []
+            if messages_data and "results" in messages_data and messages_data["results"]:
+                for message in messages_data["results"]:
+                    formatted_message = {
+                        "id": message.get("id"),
+                        "subject": message.get("subject"),
+                        "text": message.get("text")[0:500] if message.get("text") else "",
+                        "createdAt": message.get("createdAt"),
+                        "direction": message.get("direction"),
+                        "status": message.get("status", {}).get("statusType") if message.get("status") else None
+                    }
+                    formatted_messages.append(formatted_message)
+            
+            return formatted_messages
+            
+        except Exception as e:
+            logger.error(f"Failed to get messages for thread {thread_id}: {str(e)}")
+            return []
 
     def get_thread_latest_message(self, thread_id: str) -> dict:
         """Get the latest message from a conversation thread
@@ -493,45 +603,39 @@ class HubSpotClient:
         """
         try:
             # Get multiple messages as the first might be a system message
-            messages_response = self.client.api_request({
-                "method": "GET",
-                "path": f"/conversations/v3/conversations/threads/{thread_id}/messages",
-                "params": {
-                    "limit": 3 # at least get 3, the first message can be system message
-                }
-            })
-            
-            # Parse the JSON response
-            messages_data = messages_response.json()
+            messages = self.get_thread_messages(thread_id, limit=3)
             
             # Iterate through messages to find the first one with non-empty text
-            if messages_data and "results" in messages_data and messages_data["results"]:
-                for message in messages_data["results"]:
+            if messages:
+                for message in messages:
                     if message.get("text"):
-                        return {
-                            "id": message.get("id"),
-                            "subject": message.get("subject"),
-                            "text": message.get("text")[0:500] if message.get("text") else "",
-                            # "richText": message.get("richText"),
-                            "createdAt": message.get("createdAt"),
-                            "direction": message.get("direction"),
-                            "status": message.get("status", {}).get("statusType") if message.get("status") else None
-                        }
+                        return message
                 
                 # If we didn't find a message with text, return the first one anyway
-                message = messages_data["results"][0]
-                return {
-                    "id": message.get("id"),
-                    "subject": message.get("subject"),
-                    "text": message.get("text")[0:500] if message.get("text") else "",
-                    # "richText": message.get("richText"),
-                    "createdAt": message.get("createdAt"),
-                    "direction": message.get("direction"),
-                    "status": message.get("status", {}).get("statusType") if message.get("status") else None
-                }
+                return messages[0]
             
             return {}
             
         except Exception as e:
             logger.error(f"Failed to get latest message for thread {thread_id}: {str(e)}")
-            return {} 
+            return {}
+
+    def get_channel_accounts(self) -> str:
+        """Get channel accounts from HubSpot
+        
+        Returns:
+            JSON string of channel accounts data
+        """
+        try:
+            channels = self.get_all_channels()
+            
+            # Convert any datetime fields and return
+            converted_channels = convert_datetime_fields(channels)
+            return json.dumps(converted_channels)
+            
+        except ApiException as e:
+            logger.error(f"API Exception: {str(e)}")
+            return json.dumps({"error": str(e)})
+        except Exception as e:
+            logger.error(f"Exception: {str(e)}")
+            return json.dumps({"error": str(e)}) 

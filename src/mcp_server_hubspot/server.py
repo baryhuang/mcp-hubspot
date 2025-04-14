@@ -118,6 +118,82 @@ async def main(access_token: Optional[str] = None):
                     },
                 },
             ),
+            types.Tool(
+                name="hubspot_get_inboxes",
+                description="Get HubSpot conversation inboxes",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "limit": {"type": "integer", "description": "Maximum number of inboxes to return (default: 10)"}
+                    },
+                },
+            ),
+            types.Tool(
+                name="hubspot_get_channels_for_inbox",
+                description="Get channels for a specific HubSpot inbox",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "inbox_id": {"type": "string", "description": "The ID of the inbox to get channels for"}
+                    },
+                    "required": ["inbox_id"]
+                },
+            ),
+            types.Tool(
+                name="hubspot_get_all_channels",
+                description="Get all HubSpot channel accounts",
+                inputSchema={
+                    "type": "object",
+                    "properties": {},
+                },
+            ),
+            types.Tool(
+                name="hubspot_get_threads_for_inbox",
+                description="Get conversation threads for a specific inbox",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "inbox_id": {"type": "string", "description": "The ID of the inbox to get threads for"},
+                        "limit": {"type": "integer", "description": "Maximum number of threads to return (default: 10)"}
+                    },
+                    "required": ["inbox_id"]
+                },
+            ),
+            types.Tool(
+                name="hubspot_get_threads_for_channel",
+                description="Get conversation threads for a specific channel",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "channel_id": {"type": "string", "description": "The ID of the channel to get threads for"},
+                        "limit": {"type": "integer", "description": "Maximum number of threads to return (default: 10)"}
+                    },
+                    "required": ["channel_id"]
+                },
+            ),
+            types.Tool(
+                name="hubspot_get_thread_messages",
+                description="Get messages from a conversation thread",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "thread_id": {"type": "string", "description": "The ID of the thread to get messages from"},
+                        "limit": {"type": "integer", "description": "Maximum number of messages to return (default: 10)"}
+                    },
+                    "required": ["thread_id"]
+                },
+            ),
+            types.Tool(
+                name="hubspot_get_thread_latest_message",
+                description="Get the latest message from a conversation thread",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "thread_id": {"type": "string", "description": "The ID of the thread to get the latest message from"}
+                    },
+                    "required": ["thread_id"]
+                },
+            ),
         ]
 
     @server.call_tool()
@@ -309,6 +385,73 @@ async def main(access_token: Optional[str] = None):
                 # Get recent conversations
                 results = hubspot.get_recent_conversations(limit=limit)
                 return [types.TextContent(type="text", text=results)]
+
+            # New modular tools for inbox, channels, threads and messages
+            elif name == "hubspot_get_inboxes":
+                # Extract parameters with defaults
+                limit = arguments.get("limit", 10) if arguments else 10
+                limit = int(limit) if limit is not None else 10
+                
+                # Get inboxes
+                inboxes = hubspot.get_inboxes(limit=limit)
+                return [types.TextContent(type="text", text=json.dumps(inboxes))]
+                
+            elif name == "hubspot_get_channels_for_inbox":
+                if not arguments or "inbox_id" not in arguments:
+                    raise ValueError("Missing inbox_id argument")
+                    
+                # Get channels for inbox
+                channels = hubspot.get_channels_for_inbox(inbox_id=arguments["inbox_id"])
+                return [types.TextContent(type="text", text=json.dumps(channels))]
+                
+            elif name == "hubspot_get_all_channels":
+                # Get all channels
+                channels = hubspot.get_all_channels()
+                return [types.TextContent(type="text", text=json.dumps(channels))]
+                
+            elif name == "hubspot_get_threads_for_inbox":
+                if not arguments or "inbox_id" not in arguments:
+                    raise ValueError("Missing inbox_id argument")
+                    
+                # Extract optional limit parameter
+                limit = arguments.get("limit", 10)
+                limit = int(limit) if limit is not None else 10
+                
+                # Get threads for inbox
+                threads = hubspot.get_threads_for_inbox(inbox_id=arguments["inbox_id"], limit=limit)
+                return [types.TextContent(type="text", text=json.dumps(threads))]
+                
+            elif name == "hubspot_get_threads_for_channel":
+                if not arguments or "channel_id" not in arguments:
+                    raise ValueError("Missing channel_id argument")
+                    
+                # Extract optional limit parameter
+                limit = arguments.get("limit", 10)
+                limit = int(limit) if limit is not None else 10
+                
+                # Get threads for channel
+                threads = hubspot.get_threads_for_channel(channel_id=arguments["channel_id"], limit=limit)
+                return [types.TextContent(type="text", text=json.dumps(threads))]
+                
+            elif name == "hubspot_get_thread_messages":
+                if not arguments or "thread_id" not in arguments:
+                    raise ValueError("Missing thread_id argument")
+                    
+                # Extract optional limit parameter
+                limit = arguments.get("limit", 10)
+                limit = int(limit) if limit is not None else 10
+                
+                # Get messages for thread
+                messages = hubspot.get_thread_messages(thread_id=arguments["thread_id"], limit=limit)
+                return [types.TextContent(type="text", text=json.dumps(messages))]
+                
+            elif name == "hubspot_get_thread_latest_message":
+                if not arguments or "thread_id" not in arguments:
+                    raise ValueError("Missing thread_id argument")
+                    
+                # Get latest message for thread
+                message = hubspot.get_thread_latest_message(thread_id=arguments["thread_id"])
+                return [types.TextContent(type="text", text=json.dumps(message))]
 
             else:
                 raise ValueError(f"Unknown tool: {name}")
