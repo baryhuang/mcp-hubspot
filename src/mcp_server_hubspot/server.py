@@ -109,7 +109,7 @@ async def main(access_token: Optional[str] = None):
                 },
             ),
             types.Tool(
-                name="hubspot_get_recent_conversations",
+                name="hubspot_conversations_recent",
                 description="Get recent conversations from HubSpot inbox",
                 inputSchema={
                     "type": "object",
@@ -119,7 +119,7 @@ async def main(access_token: Optional[str] = None):
                 },
             ),
             types.Tool(
-                name="hubspot_get_inboxes",
+                name="hubspot_conversations_inboxes",
                 description="Get HubSpot conversation inboxes",
                 inputSchema={
                     "type": "object",
@@ -129,7 +129,7 @@ async def main(access_token: Optional[str] = None):
                 },
             ),
             types.Tool(
-                name="hubspot_get_channels_for_inbox",
+                name="hubspot_conversations_channels_for_inbox",
                 description="Get channels for a specific HubSpot inbox",
                 inputSchema={
                     "type": "object",
@@ -140,7 +140,7 @@ async def main(access_token: Optional[str] = None):
                 },
             ),
             types.Tool(
-                name="hubspot_get_all_channels",
+                name="hubspot_conversations_all_channels",
                 description="Get all HubSpot channel accounts",
                 inputSchema={
                     "type": "object",
@@ -148,7 +148,7 @@ async def main(access_token: Optional[str] = None):
                 },
             ),
             types.Tool(
-                name="hubspot_get_threads_for_inbox",
+                name="hubspot_conversations_threads_for_inbox",
                 description="Get conversation threads for a specific inbox",
                 inputSchema={
                     "type": "object",
@@ -160,7 +160,7 @@ async def main(access_token: Optional[str] = None):
                 },
             ),
             types.Tool(
-                name="hubspot_get_threads_for_channel",
+                name="hubspot_conversations_threads_for_channel",
                 description="Get conversation threads for a specific channel",
                 inputSchema={
                     "type": "object",
@@ -172,7 +172,7 @@ async def main(access_token: Optional[str] = None):
                 },
             ),
             types.Tool(
-                name="hubspot_get_thread_messages",
+                name="hubspot_conversations_thread_messages",
                 description="Get messages from a conversation thread",
                 inputSchema={
                     "type": "object",
@@ -184,7 +184,7 @@ async def main(access_token: Optional[str] = None):
                 },
             ),
             types.Tool(
-                name="hubspot_get_thread_latest_message",
+                name="hubspot_conversations_thread_latest_message",
                 description="Get the latest message from a conversation thread",
                 inputSchema={
                     "type": "object",
@@ -375,7 +375,7 @@ async def main(access_token: Optional[str] = None):
                 results = hubspot.get_recent_contacts(limit=limit)
                 return [types.TextContent(type="text", text=results)]
 
-            elif name == "hubspot_get_recent_conversations":
+            elif name == "hubspot_conversations_recent":
                 # Extract parameters with defaults if not provided
                 limit = arguments.get("limit", 10) if arguments else 10
                 
@@ -387,7 +387,7 @@ async def main(access_token: Optional[str] = None):
                 return [types.TextContent(type="text", text=results)]
 
             # New modular tools for inbox, channels, threads and messages
-            elif name == "hubspot_get_inboxes":
+            elif name == "hubspot_conversations_inboxes":
                 # Extract parameters with defaults
                 limit = arguments.get("limit", 10) if arguments else 10
                 limit = int(limit) if limit is not None else 10
@@ -396,7 +396,7 @@ async def main(access_token: Optional[str] = None):
                 inboxes = hubspot.get_inboxes(limit=limit)
                 return [types.TextContent(type="text", text=json.dumps(inboxes))]
                 
-            elif name == "hubspot_get_channels_for_inbox":
+            elif name == "hubspot_conversations_channels_for_inbox":
                 if not arguments or "inbox_id" not in arguments:
                     raise ValueError("Missing inbox_id argument")
                     
@@ -404,12 +404,12 @@ async def main(access_token: Optional[str] = None):
                 channels = hubspot.get_channels_for_inbox(inbox_id=arguments["inbox_id"])
                 return [types.TextContent(type="text", text=json.dumps(channels))]
                 
-            elif name == "hubspot_get_all_channels":
+            elif name == "hubspot_conversations_all_channels":
                 # Get all channels
                 channels = hubspot.get_all_channels()
                 return [types.TextContent(type="text", text=json.dumps(channels))]
                 
-            elif name == "hubspot_get_threads_for_inbox":
+            elif name == "hubspot_conversations_threads_for_inbox":
                 if not arguments or "inbox_id" not in arguments:
                     raise ValueError("Missing inbox_id argument")
                     
@@ -421,7 +421,7 @@ async def main(access_token: Optional[str] = None):
                 threads = hubspot.get_threads_for_inbox(inbox_id=arguments["inbox_id"], limit=limit)
                 return [types.TextContent(type="text", text=json.dumps(threads))]
                 
-            elif name == "hubspot_get_threads_for_channel":
+            elif name == "hubspot_conversations_threads_for_channel":
                 if not arguments or "channel_id" not in arguments:
                     raise ValueError("Missing channel_id argument")
                     
@@ -433,7 +433,7 @@ async def main(access_token: Optional[str] = None):
                 threads = hubspot.get_threads_for_channel(channel_id=arguments["channel_id"], limit=limit)
                 return [types.TextContent(type="text", text=json.dumps(threads))]
                 
-            elif name == "hubspot_get_thread_messages":
+            elif name == "hubspot_conversations_thread_messages":
                 if not arguments or "thread_id" not in arguments:
                     raise ValueError("Missing thread_id argument")
                     
@@ -445,7 +445,7 @@ async def main(access_token: Optional[str] = None):
                 messages = hubspot.get_thread_messages(thread_id=arguments["thread_id"], limit=limit)
                 return [types.TextContent(type="text", text=json.dumps(messages))]
                 
-            elif name == "hubspot_get_thread_latest_message":
+            elif name == "hubspot_conversations_thread_latest_message":
                 if not arguments or "thread_id" not in arguments:
                     raise ValueError("Missing thread_id argument")
                     
